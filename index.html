@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LatexGuard — Smart Latex Quality Assessment System</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- =====================================================================
+       SECTION A — HEADER
+       ===================================================================== -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand-block">
+        <div class="brand-logo-wrapper">
+          <!-- Geometric leaf-inspired scientific logo -->
+          <svg class="brand-logo" viewBox="0 0 40 40" width="36" height="36" aria-hidden="true">
+            <path d="M20 4 C28 4 36 12 36 20 C36 28 28 36 20 36 C14 36 8 30 6 22 C5 17 8 10 14 6 C16 4.7 18 4 20 4 Z" fill="#E8F5EC" stroke="#176B45" stroke-width="2"/>
+            <path d="M20 7 C26 13 26 23 20 33" fill="none" stroke="#176B45" stroke-width="2" stroke-linecap="round"/>
+            <path d="M20 16 C23 14 27 15 29 18" fill="none" stroke="#38A169" stroke-width="1.8" stroke-linecap="round"/>
+            <path d="M20 22 C23 20 27 21 28 24" fill="none" stroke="#38A169" stroke-width="1.8" stroke-linecap="round"/>
+            <path d="M20 20 C17 18 13 19 11 22" fill="none" stroke="#38A169" stroke-width="1.8" stroke-linecap="round"/>
+            <circle cx="20" cy="20" r="2.5" fill="#104B35"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <div class="brand-title-row">
+            <h1 class="brand-title">LatexGuard</h1>
+            <span class="brand-badge">B.Tech ECE Project</span>
+          </div>
+          <p class="brand-subtitle">Natural Rubber Latex Intelligence &amp; Multi-Spectral Monitoring</p>
+        </div>
+      </div>
+
+      <div class="header-status-group">
+        <!-- Live Hardware Connection Status -->
+        <div class="status-indicator-box">
+          <span class="indicator-label">ESP32 LINK</span>
+          <div class="connection-pill state-disconnected" id="connection-pill">
+            <span class="status-dot" id="connection-dot"></span>
+            <span class="status-text" id="connection-status-text">ESP32: NOT CONNECTED</span>
+          </div>
+        </div>
+
+        <!-- Mode Indicator -->
+        <div class="status-indicator-box">
+          <span class="indicator-label">ACQUISITION MODE</span>
+          <div class="mode-pill mode-live" id="mode-pill">
+            <span class="mode-text" id="mode-status-text">LIVE SENSOR</span>
+          </div>
+        </div>
+
+        <!-- Last Updated Time -->
+        <div class="status-indicator-box last-update-box">
+          <span class="indicator-label">LAST TELEMETRY</span>
+          <span class="update-time-val" id="header-last-update">—</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- =====================================================================
+       SECTION B — SAMPLE INFORMATION STRIP
+       ===================================================================== -->
+  <section class="sample-strip" aria-label="Sample Information">
+    <div class="strip-container">
+      <div class="strip-item">
+        <span class="strip-label">SAMPLE ID:</span>
+        <span class="strip-value" id="strip-sample-id">—</span>
+        <span class="strip-tag" id="strip-sample-source">Local ID</span>
+      </div>
+      <div class="strip-divider"></div>
+      <div class="strip-item">
+        <span class="strip-label">DEVICE ID:</span>
+        <span class="strip-value" id="strip-device-id">—</span>
+      </div>
+      <div class="strip-divider"></div>
+      <div class="strip-item">
+        <span class="strip-label">SAMPLING MODE:</span>
+        <span class="strip-value highlight" id="strip-mode">LIVE SENSOR</span>
+      </div>
+      <div class="strip-divider"></div>
+      <div class="strip-item">
+        <span class="strip-label">DATA INTEGRITY:</span>
+        <span class="strip-value" id="strip-integrity">Awaiting Sample</span>
+      </div>
+      <div class="strip-divider"></div>
+      <div class="strip-item">
+        <span class="strip-label">STALENESS:</span>
+        <span class="strip-value" id="strip-staleness">Active</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- =====================================================================
+       SECTION H — CONTROLS TOOLBAR & CONFIGURATION
+       ===================================================================== -->
+  <section class="controls-toolbar" aria-label="System Controls">
+    <div class="controls-container">
+      <div class="btn-group main-controls">
+        <button type="button" class="btn btn-primary" id="btn-start" title="Start periodic data polling">
+          <span class="btn-icon">▶</span> Start Monitoring
+        </button>
+        <button type="button" class="btn btn-secondary" id="btn-stop" disabled title="Stop periodic data polling">
+          <span class="btn-icon">⏹</span> Stop Monitoring
+        </button>
+        <button type="button" class="btn btn-outline" id="btn-reconnect" title="Trigger an immediate manual request to ESP32">
+          <span class="btn-icon">↻</span> Reconnect
+        </button>
+        <button type="button" class="btn btn-toggle" id="btn-toggle-mode" title="Switch between Live Sensor polling and Demo Mode simulation">
+          Switch to Demo Mode
+        </button>
+      </div>
+
+      <div class="btn-group secondary-controls">
+        <button type="button" class="btn btn-outline" id="btn-clear-history" title="Clear table records from browser memory">
+          Clear History
+        </button>
+        <button type="button" class="btn btn-accent" id="btn-export-csv" title="Download history and spectral readings as CSV">
+          Export CSV
+        </button>
+        <button type="button" class="btn btn-icon-only" id="btn-toggle-settings" aria-expanded="false" title="Toggle Hardware &amp; Calibration Settings">
+          ⚙ Settings
+        </button>
+      </div>
+    </div>
+
+    <!-- Collapsible Settings Panel for Wi-Fi & Calibration Configuration -->
+    <div class="settings-drawer" id="settings-drawer" hidden>
+      <div class="settings-grid">
+        <div class="settings-group">
+          <label for="cfg-endpoint" class="settings-label">ESP32 Sensor HTTP Endpoint:</label>
+          <div class="input-with-button">
+            <input type="url" id="cfg-endpoint" class="settings-input" value="http://192.168.220.139/data" placeholder="http://192.168.220.139/data">
+            <button type="button" class="btn btn-sm btn-outline" id="btn-save-endpoint">Save</button>
+          </div>
+          <span class="settings-hint">The ESP32 webserver URL serving sensor JSON data over local Wi-Fi.</span>
+        </div>
+
+        <div class="settings-group">
+          <label for="cfg-interval" class="settings-label">Polling Interval (ms):</label>
+          <input type="number" id="cfg-interval" class="settings-input" value="5000" min="500" max="30000" step="500">
+          <span class="settings-hint">Interval between consecutive GET requests.</span>
+        </div>
+
+        <div class="settings-group">
+          <label class="settings-label">Experimental DRC Model Calibration:</label>
+          <div class="checkbox-row">
+            <input type="checkbox" id="cfg-enable-calibration">
+            <label for="cfg-enable-calibration">Enable Experimental Lab DRC Calibration Model</label>
+          </div>
+          <span class="settings-hint">When unchecked, adheres strictly to scientific validation protocol ("Calibration Required").</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Live/Demo Alert Banner -->
+  <div class="notification-banner banner-live" id="mode-warning-banner">
+    <div class="banner-content">
+      <span class="banner-badge">NOTICE</span>
+      <span class="banner-message" id="banner-text">LIVE SENSOR MODE: Polling ESP32 REST server at http://192.168.220.139/data. Telemetry will be sourced from hardware.</span>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       MAIN SCIENTIFIC DASHBOARD LAYOUT
+       ===================================================================== -->
+  <main class="dashboard-main">
+    <div class="dashboard-grid">
+
+      <!-- ===================================================================
+           SECTION C — PRIMARY DRC ANALYSIS
+           =================================================================== -->
+      <section class="card drc-card" aria-label="Dry Rubber Content Analysis">
+        <div class="card-header">
+          <div class="card-title-group">
+            <h2 class="card-title">PRIMARY DRY RUBBER CONTENT (DRC) ANALYSIS</h2>
+            <span class="card-tag">Core Quality Metric</span>
+          </div>
+          <div class="card-header-status">
+            <span class="badge" id="drc-calibration-badge">UNVERIFIED CALIBRATION</span>
+          </div>
+        </div>
+
+        <div class="drc-content-body">
+          <div class="drc-main-readout">
+            <div class="drc-value-display">
+              <span class="drc-number" id="drc-value-number">—</span>
+              <span class="drc-unit" id="drc-value-unit">%</span>
+            </div>
+            <div class="drc-status-caption" id="drc-status-caption">
+              DRC estimation requires calibration with reference laboratory measurements.
+            </div>
+          </div>
+
+          <!-- Scientific Horizontal Semicircular / Segmented Bar Indicator -->
+          <div class="drc-meter-container">
+            <div class="drc-meter-track">
+              <div class="drc-meter-bar" id="drc-meter-fill" style="width: 0%;"></div>
+              <div class="drc-reference-marker low" style="left: 28%;" title="Typical Low DRC threshold (28%)"></div>
+              <div class="drc-reference-marker high" style="left: 35%;" title="Typical High DRC benchmark (35%)"></div>
+            </div>
+            <div class="drc-meter-ticks">
+              <span>0%</span>
+              <span>10%</span>
+              <span>20%</span>
+              <span class="tick-label-ref">28% (Min Std)</span>
+              <span class="tick-label-ref">35% (Prime)</span>
+              <span>45%</span>
+              <span>60%</span>
+            </div>
+          </div>
+
+          <div class="drc-meta-grid">
+            <div class="meta-item">
+              <span class="meta-label">Estimation Model:</span>
+              <span class="meta-val" id="drc-model-name">Standard Multi-Band Optical Absorption</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Calibration State:</span>
+              <span class="meta-val" id="drc-cal-state">Pending Reference Calibration</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Spectral Inputs:</span>
+              <span class="meta-val" id="drc-spectral-inputs">AS7343 14 Channels</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Scientific Validity:</span>
+              <span class="meta-val" id="drc-scientific-validity">Awaiting Laboratory Curve</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================================================================
+           SECTION D — AS7343 14-CHANNEL SPECTRAL ANALYSIS
+           =================================================================== -->
+      <section class="card spectral-card" aria-label="AS7343 Spectral Analysis">
+        <div class="card-header">
+          <div class="card-title-group">
+            <h2 class="card-title">AS7343 | 14-CHANNEL SPECTRAL ANALYSIS</h2>
+            <span class="card-tag">Primary Multi-Spectral Sensor</span>
+          </div>
+          <div class="spectral-legend">
+            <span class="legend-item"><span class="legend-swatch visible"></span> Visible (405–690nm)</span>
+            <span class="legend-item"><span class="legend-swatch nir"></span> NIR (745–860nm)</span>
+            <span class="legend-item"><span class="legend-swatch clear"></span> Broadband &amp; Flicker</span>
+          </div>
+        </div>
+
+        <div class="spectral-explanatory-note">
+          <span class="note-icon">ℹ</span>
+          <span>Spectral measurements are used as inputs for calibrated DRC estimation. 14 discrete photodiodes capture reflectance and attenuation through the latex sample.</span>
+        </div>
+
+        <!-- 14-Channel Scientific Measurement Grid -->
+        <div class="spectral-grid" id="spectral-channels-grid">
+          <!-- Populated dynamically via script.js for full flexibility and exact mapping -->
+        </div>
+
+        <div class="spectral-footer-summary">
+          <div class="spec-stat">
+            <span class="spec-stat-label">Peak Channel:</span>
+            <span class="spec-stat-val" id="spec-peak-channel">—</span>
+          </div>
+          <div class="spec-stat">
+            <span class="spec-stat-label">Total Optical Intensity:</span>
+            <span class="spec-stat-val" id="spec-total-flux">—</span>
+          </div>
+          <div class="spec-stat">
+            <span class="spec-stat-label">NIR / Vis Ratio:</span>
+            <span class="spec-stat-val" id="spec-nir-ratio">—</span>
+          </div>
+          <div class="spec-stat">
+            <span class="spec-stat-label">Channels Active:</span>
+            <span class="spec-stat-val" id="spec-active-channels">0 / 14</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================================================================
+           SECTION E — SUPPORTING SENSOR MONITORING (3 Structured Panels)
+           =================================================================== -->
+      <div class="supporting-sensors-container">
+
+        <!-- 1. pH SENSOR PANEL -->
+        <section class="card sensor-subcard ph-subcard" aria-label="pH Sensor Monitoring">
+          <div class="card-header subcard-header">
+            <div class="card-title-group">
+              <h3 class="card-sub-title">1. pH SENSOR</h3>
+              <span class="sub-badge" id="ph-status-badge">AWAITING</span>
+            </div>
+            <span class="timestamp-tiny" id="ph-timestamp">—</span>
+          </div>
+          <div class="sensor-sub-body">
+            <div class="reading-row">
+              <div class="reading-large">
+                <span class="reading-num" id="ph-reading-val">—</span>
+                <span class="reading-unit-tag">pH unit-free</span>
+              </div>
+              <div class="reading-scale-visual">
+                <div class="ph-scale-track">
+                  <div class="ph-opt-band" title="Optimal fresh latex target range: 6.5 - 7.0"></div>
+                  <div class="ph-pointer" id="ph-pointer" style="left: 50%;"></div>
+                </div>
+                <div class="ph-scale-labels">
+                  <span>Acidic (4.0)</span>
+                  <span class="ph-mid-label">Optimal (6.5–7.0)</span>
+                  <span>Alkaline (10.0)</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="sub-meta-list">
+              <div class="sub-meta-row">
+                <span>Signal Validity:</span>
+                <strong id="ph-validity-text">—</strong>
+              </div>
+              <div class="sub-meta-row">
+                <span>Configured Acceptable Range:</span>
+                <span>6.20 – 7.20</span>
+              </div>
+              <div class="sub-meta-row">
+                <span>Preservation Indicator:</span>
+                <span id="ph-preservation-hint">Awaiting reading</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 2. HUMIDITY SENSOR PANEL -->
+        <section class="card sensor-subcard humidity-subcard" aria-label="Humidity Sensor Monitoring">
+          <div class="card-header subcard-header">
+            <div class="card-title-group">
+              <h3 class="card-sub-title">2. HUMIDITY SENSOR</h3>
+              <span class="sub-badge" id="hum-status-badge">AWAITING</span>
+            </div>
+            <span class="timestamp-tiny" id="hum-timestamp">—</span>
+          </div>
+          <div class="sensor-sub-body">
+            <div class="reading-row">
+              <div class="reading-large">
+                <span class="reading-num" id="hum-reading-val">—</span>
+                <span class="reading-unit-tag">% RH</span>
+              </div>
+              <div class="reading-context-tag" id="hum-context-tag">
+                Measurement Context: Ambient Environment
+              </div>
+            </div>
+
+            <div class="scientific-disclaimer">
+              <span class="disclaimer-bullet">⚠</span>
+              <span>Notice: Relative humidity reflects ambient atmospheric vapor in the enclosure. It does not represent internal latex emulsion moisture content.</span>
+            </div>
+
+            <div class="sub-meta-list">
+              <div class="sub-meta-row">
+                <span>Sensor Integrity:</span>
+                <strong id="hum-validity-text">—</strong>
+              </div>
+              <div class="sub-meta-row">
+                <span>Dew Point Estimate:</span>
+                <span id="hum-dew-point">—</span>
+              </div>
+              <div class="sub-meta-row">
+                <span>Enclosure Atmosphere:</span>
+                <span id="hum-atmosphere-state">Nominal</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 3. ESP32 COMMUNICATION STATUS PANEL -->
+        <section class="card sensor-subcard comms-subcard" aria-label="ESP32 Communication Status">
+          <div class="card-header subcard-header">
+            <div class="card-title-group">
+              <h3 class="card-sub-title">3. ESP32 COMMUNICATION</h3>
+              <span class="sub-badge state-disconnected" id="comms-link-badge">NOT CONNECTED</span>
+            </div>
+            <span class="timestamp-tiny" id="comms-timestamp">—</span>
+          </div>
+          <div class="sensor-sub-body">
+            <div class="comms-metrics-grid">
+              <div class="comms-metric">
+                <span class="cm-label">Active Endpoint</span>
+                <span class="cm-val cm-mono" id="comms-endpoint-display">http://192.168.220.139/data</span>
+              </div>
+              <div class="comms-metric">
+                <span class="cm-label">Time Since Valid Sync</span>
+                <span class="cm-val" id="comms-time-since">—</span>
+              </div>
+              <div class="comms-metric">
+                <span class="cm-label">Valid Telemetry Packets</span>
+                <span class="cm-val" id="comms-valid-count">0</span>
+              </div>
+              <div class="comms-metric">
+                <span class="cm-label">Invalid / Failed Requests</span>
+                <span class="cm-val" id="comms-invalid-count">0</span>
+              </div>
+            </div>
+
+            <div class="sub-meta-list">
+              <div class="sub-meta-row">
+                <span>Transport Protocol:</span>
+                <span>HTTP REST (JSON Polling)</span>
+              </div>
+              <div class="sub-meta-row">
+                <span>Last HTTP Response Code:</span>
+                <span id="comms-http-code">—</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </div>
+
+      <!-- ===================================================================
+           SECTION F — LATEX QUALITY ASSESSMENT
+           =================================================================== -->
+      <section class="card quality-card" aria-label="Latex Quality Assessment">
+        <div class="card-header">
+          <div class="card-title-group">
+            <h2 class="card-title">LATEX QUALITY ASSESSMENT</h2>
+            <span class="card-tag">Multi-Parametric Evaluation</span>
+          </div>
+          <div class="quality-grade-pill" id="quality-grade-pill">
+            <span id="quality-grade-text">PENDING RULES</span>
+          </div>
+        </div>
+
+        <div class="quality-content-body">
+          <div class="quality-summary-banner" id="quality-summary-banner">
+            <span class="qs-title" id="quality-headline">Quality grade pending validated calibration and grading rules.</span>
+            <p class="qs-description" id="quality-detail">
+              Rigorous quality grading requires an experimentally validated calibration curve correlating AS7343 spectral absorption to standard laboratory DRC determination.
+            </p>
+          </div>
+
+          <div class="quality-criteria-grid">
+            <div class="criteria-card">
+              <div class="crit-head">
+                <span class="crit-name">DRC Contribution</span>
+                <span class="crit-state" id="crit-drc-state">Uncalibrated</span>
+              </div>
+              <p class="crit-desc">Primary determinant of industrial pricing and processing viability.</p>
+            </div>
+
+            <div class="criteria-card">
+              <div class="crit-head">
+                <span class="crit-name">pH Stability</span>
+                <span class="crit-state" id="crit-ph-state">Awaiting Data</span>
+              </div>
+              <p class="crit-desc">Indicates natural bacterial acid formation or ammonia preservation state.</p>
+            </div>
+
+            <div class="criteria-card">
+              <div class="crit-head">
+                <span class="crit-name">Atmospheric Humidity</span>
+                <span class="crit-state" id="crit-hum-state">Monitored</span>
+              </div>
+              <p class="crit-desc">Environmental condition during sample inspection.</p>
+            </div>
+
+            <div class="criteria-card">
+              <div class="crit-head">
+                <span class="crit-name">Sample Signal Integrity</span>
+                <span class="crit-state" id="crit-validity-state">Pending</span>
+              </div>
+              <p class="crit-desc">Validates optical channel saturation and baseline stability.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================================================================
+           SECTION G — LIVE DATA HISTORY TABLE
+           =================================================================== -->
+      <section class="card history-card" aria-label="Measurement History">
+        <div class="card-header">
+          <div class="card-title-group">
+            <h2 class="card-title">LIVE DATA HISTORY</h2>
+            <span class="card-tag">Session Telemetry Log (Browser Memory)</span>
+          </div>
+          <div class="history-count">
+            Showing <span id="history-row-count">0</span> records (max 100)
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="history-table" id="history-table">
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>Sample ID</th>
+                <th>Mode</th>
+                <th>Peak Spectral Channel</th>
+                <th>pH</th>
+                <th>Humidity</th>
+                <th>DRC Result</th>
+                <th>Quality Assessment</th>
+                <th>Integrity</th>
+              </tr>
+            </thead>
+            <tbody id="history-table-body">
+              <tr class="empty-row" id="history-empty-row">
+                <td colspan="9">No telemetry records logged yet. Start monitoring or switch to Demo Mode.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- =====================================================================
+       SECTION I — FOOTER
+       ===================================================================== -->
+  <footer class="app-footer">
+    <div class="footer-container">
+      <div class="footer-primary">
+        <p class="footer-title">LatexGuard | Smart Latex Quality Assessment System</p>
+        <p class="footer-sub">Natural Rubber Latex Monitoring | Electronics and Communication Engineering</p>
+      </div>
+      <div class="footer-notes">
+        <p class="footer-disclaimer">
+          Socially Relevant Engineering Project — Multi-sensor integration with ESP32 microcontroller, AS7343 14-channel spectral sensor, analog pH instrumentation, and ambient humidity sensing.
+        </p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Linked Application Scripts -->
+  <script src="script.js"></script>
+</body>
+</html>
